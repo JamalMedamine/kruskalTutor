@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User , Quiz,Question,QuizResult
+from .models import User , Quiz,Question,QuizResult,Lesson
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -40,4 +40,8 @@ class QuizResultSerializer(serializers.ModelSerializer):
      class Meta:
         model = QuizResult
         fields = ['id', 'user', 'quiz', 'score', 'passed', 'taken_at']
-        
+
+class LessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = ['id', 'user', 'title', 'content', 'created_at']

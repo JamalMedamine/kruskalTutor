@@ -31,7 +31,7 @@ class QuizResult(models.Model):
 class Lesson(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lessons')  
     title = models.CharField(max_length=200)
-    content = models.TextField()
+    content = models.JSONField()
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Assignment(models.Model):

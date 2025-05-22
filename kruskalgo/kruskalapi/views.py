@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import User, Quiz, Question, Assignment, AssignmentSubmission, Certificate, ChatMessage, ChatSession, Lesson, LessonProgress,QuizResult
-from .serializer import UserSerializer , QuestionSerializer , QuizSerializer,QuizResultSerializer
+from .serializer import UserSerializer , QuestionSerializer , QuizSerializer,QuizResultSerializer,LessonSerializer
 import aiohttp
 import asyncio
 import json
@@ -199,6 +199,73 @@ def getQuizbyUser(request, pk):
             return Response({"error": "No active quiz found for this user"}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=400)
-
         
+@api_view(['GET'])
+def getIntro(request, pk):
+    try:
+        lesson = Lesson.objects.get(user__pk=pk, title="Introduction to Kruskal's Algorithm")
+        serializer = LessonSerializer(lesson) 
+        return Response(serializer.data)
+    except Lesson.DoesNotExist:
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=404)
+        
+        prompt = """
+        Create a concise introductory lesson about Kruskal's Algorithm in JSON format with this structure:
+        {
+            "title": "Introduction to Kruskal's Algorithm",
+            "content": [
+                {
+                    "section_title": "What is Kruskal's Algorithm?",
+                    "section_content": "Kruskal's algorithm is a greedy approach to find the Minimum Spanning Tree (MST) in a connected, undirected graph. Developed by Joseph Kruskal in 1956, it efficiently constructs an MST by always adding the next lowest-weight edge that doesn't form a cycle."
+                },
+                {
+                    "section_title": "Key Characteristics",
+                    "section_content": [
+                        "Works on weighted, undirected graphs",
+                        "Time complexity: O(E log V) using Union-Find",
+                        "Guaranteed to find the optimal solution",
+                        "Naturally parallelizable process"
+                    ]
+                },
+                {
+                    "section_title": "Why It Matters",
+                    "section_content": "Kruskal's algorithm has practical applications in network design, circuit wiring, and transportation systems where we need to connect all points at minimum cost without loops."
+                }
+            ],
+            "key_points": [
+                "Greedy algorithm for Minimum Spanning Trees",
+                "Works by sorting and selectively adding edges",
+                "Uses Union-Find data structure for efficiency"
+            ]
+        }
+        """
+        
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        llm_response = loop.run_until_complete(invoke_chute(prompt))
             
+        if isinstance(llm_response, dict) and "error" in llm_response:
+            return Response({"error": llm_response["error"]}, status=500)
+
+      
+        if not isinstance(llm_response, dict) or "content" not in llm_response:
+            return Response({
+                "error": "Invalid lesson format from LLM",
+                "raw": llm_response
+            }, status=400)
+            
+        lesson = Lesson.objects.create(
+            user=user,
+            title=llm_response.get("title", "Introduction to Kruskal's Algorithm"),
+            content={
+                "sections": llm_response["content"],
+                "key_points": llm_response.get("key_points", [])
+            }
+        )
+        
+        serializer = LessonSerializer(lesson)
+        return Response(serializer.data, status=201)
+                
