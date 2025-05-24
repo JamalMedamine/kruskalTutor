@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User , Quiz,Question,QuizResult,Lesson
+from .models import User , Quiz,Question,QuizResult,Lesson,ChatMessage, Assignment, LessonProgress, AssignmentSubmission, ChatSession
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -45,3 +45,16 @@ class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = ['id', 'user', 'title', 'content', 'created_at']
+
+class chatSessionSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    
+    class Meta:
+        model = ChatSession
+        fields = ['id', 'user', 'started_at']
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    session = serializers.PrimaryKeyRelatedField(read_only=True)
+    class Meta:
+        model = ChatMessage
+        fields = ['id','session', 'content','response', 'timestamp']

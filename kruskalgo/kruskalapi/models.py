@@ -62,7 +62,7 @@ class ChatSession(models.Model):
 
 class ChatMessage(models.Model):
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name="messages")
-    is_user = models.BooleanField()
+    response = models.TextField(default="null")
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 

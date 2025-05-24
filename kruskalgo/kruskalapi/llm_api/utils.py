@@ -27,12 +27,8 @@ async def invoke_chute(prompt):
         
 # Run the function and print the response
 async def main():
-    prompt = (
-            "Create a prequesites Kruskal's Algorithm quiz in JSON format:\n"
-            "{ \"title\": \"Kruskal Quiz\", \"is_final\": false, \"questions\": [\n"
-            "{\"text\": \"Question text\", \"option_a\": \"A\", \"option_b\": \"B\", \"option_c\": \"C\", \"option_d\": \"D\", \"correct_option\": \"A\" }\n"
-            "] }"
-        )
+    prompt = "'does kruskal rely on greedy algo?'" +" this is a user prompt if its about kruskal algrothim return json response else don't respond give him an exuse"
+        
     print(f"Prompt: {prompt}\nResponse:")
     response = await invoke_chute(prompt)
     print("\n\nFull Response:", response)  # Optional: Print the full response at the end

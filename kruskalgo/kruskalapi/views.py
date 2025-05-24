@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import User, Quiz, Question, Assignment, AssignmentSubmission, Certificate, ChatMessage, ChatSession, Lesson, LessonProgress,QuizResult
-from .serializer import UserSerializer , QuestionSerializer , QuizSerializer,QuizResultSerializer,LessonSerializer
+from .serializer import UserSerializer , QuestionSerializer , QuizSerializer,QuizResultSerializer,LessonSerializer,ChatMessageSerializer
 import aiohttp
 import asyncio
 import json
@@ -47,7 +47,7 @@ async def invoke_chute(prompt):
 
             cleaned_json = extract_json_from_markdown(data["choices"][0]["message"]["content"])
             if not cleaned_json:
-                return {"error": "Invalid JSON from LLM", "raw": content}
+                return {"error": "Invalid JSON from LLM", "raw": data["choices"][0]["message"]["content"]}
 
             quiz_data = json.loads(cleaned_json)
             return quiz_data
@@ -268,4 +268,69 @@ def getIntro(request, pk):
         
         serializer = LessonSerializer(lesson)
         return Response(serializer.data, status=201)
-                
+    
+@api_view(['GET'])
+def createChatSession(request, pk):
+    try:
+        user = User.objects.get(pk=pk)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=404)
+
+    chat_session = ChatSession.objects.create(user=user)
+    return Response({"session_id": chat_session.id}, status=201)
+
+@api_view(['POST', 'GET'])
+def chat_message(request, pk , session_id):
+    try:
+        chat_session = ChatSession.objects.get(pk=session_id, user__pk=pk)
+    except ChatSession.DoesNotExist:
+        return Response({"error": "Chat session not found."}, status=404)
+    
+    if request.method == 'GET':
+        messages = ChatMessage.objects.filter(session=chat_session).order_by('id')
+        serializer = ChatMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        userPrompt = request.data.get('content')
+        if not userPrompt:
+            return Response({"error": "Content is required."}, status=400)
+        
+        prompt = prompt = f"""
+                            Analyze the following user prompt: '{userPrompt}'.  
+                            If it is about Kruskal's algorithm, respond in JSON format with:  
+                            {{
+                                "response": "[relevant answer about Kruskal's algorithm]"
+                            }}  
+                            Otherwise, respond with a JSON containing an excuse:  
+                            {{
+                                "response": "[polite excuse explaining you can only discuss Kruskal's algorithm]"
+                            }}
+                            """
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        llm_response = loop.run_until_complete(invoke_chute(prompt))
+
+        if isinstance(llm_response, dict) and "error" in llm_response:
+            return Response({"error": llm_response["error"]}, status=500)
+        
+        if not isinstance(llm_response, dict) or "response" not in llm_response:
+            return Response({
+                "error": "Invalid lesson format from LLM",
+                "raw": llm_response
+            }, status=400)
+       
+        
+        
+        user_message = ChatMessage.objects.create(
+            session=chat_session, 
+            content=userPrompt, 
+            response=llm_response.get("response", "No response from LLM")
+        )
+        serializer = ChatMessageSerializer(user_message)
+
+        return Response(serializer.data, status=201)
+       
+
+        
